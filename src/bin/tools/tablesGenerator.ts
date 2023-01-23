@@ -1,7 +1,7 @@
-import { writeFileSync } from "fs";
-import { resolve } from "path";
+import { writeFile } from "node:fs/promises";
+import { resolve } from "node:path";
 
-import knex, { Knex } from "knex";
+import knex from "knex";
 
 interface GenericObject {
   //eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -10,23 +10,20 @@ interface GenericObject {
 
 const snakeToCamel = (value: string): string => value.replace(/(_\w)/g, (w) => w[1].toUpperCase());
 
-const { TABLES_OUT_DIR, POSTGRES_DSN } = process.env;
+export default async ({
+  tablesOutDir: outDir, //
+  postgresDsn,
+}: {
+  tablesOutDir: string;
+  postgresDsn: string;
+}) => {
+  const knexInstance = knex<any, any[]>({
+    client: "pg",
+    connection: postgresDsn,
+    useNullAsDefault: false,
+  });
 
-if (!TABLES_OUT_DIR) {
-  console.error(` [modelsGenerator] : TABLES_OUT_DIR env is required but not presented`);
-
-  process.exit(1);
-}
-
-const outDir = resolve(TABLES_OUT_DIR);
-
-const knexInstance = knex<any, any[]>({
-  client: "pg",
-  connection: POSTGRES_DSN,
-  useNullAsDefault: false,
-});
-
-const relationsQuery = `
+  const relationsQuery = `
 SELECT
     CAST(tc.table_schema AS varchar(255)) AS table_schema,
     CAST(tc.constraint_name AS varchar(255)) AS constraint_name,
@@ -50,14 +47,13 @@ ORDER BY
     tc.constraint_name;
 `;
 
-(async (knex: Knex): Promise<void> => {
-  const tableData = await knex //
+  const tableData = await knexInstance //
     .from("table_data")
     .where("is_ready", "=", true)
     .orderBy("name")
     .select();
 
-  const relations = (await knex.raw(relationsQuery)).rows;
+  const relations = (await knexInstance.raw(relationsQuery)).rows;
 
   const relationsByTableName: GenericObject = {};
   const tableByName: GenericObject = {};
@@ -144,7 +140,7 @@ ORDER BY
     }
   }
 
-  const result = [];
+  const result: string[] = [];
 
   for (const [, table] of Object.entries(resultByTableName)) {
     result.push(table);
@@ -152,16 +148,14 @@ ORDER BY
 
   const header = `/** This code is automatically generated. DO NOT EDIT! */
 
-import { relationType, Table } from "@lib/db/types";
+import { relationType, Table } from "@thebigsalmon/stingray/cjs/db/types";
 
 export const tables: Table[] =`;
 
-  writeFileSync(
+  await writeFile(
     resolve(outDir, "tables.ts"),
     `${header} ${JSON.stringify(result, null, 2)
       .replace(/"relationType.belongsToOne"/g, `relationType.belongsToOne`)
       .replace(/"relationType.hasMany"/g, `relationType.hasMany`)}`,
   );
-
-  process.exit(0);
-})(knexInstance);
+};

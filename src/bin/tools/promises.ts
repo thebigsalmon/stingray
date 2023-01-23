@@ -1,4 +1,4 @@
-import { EventEmitter } from "events";
+import { EventEmitter } from "node:events";
 
 type GenericPromise<T> = (...args: any[]) => Promise<T>; // eslint-disable-line @typescript-eslint/no-explicit-any
 

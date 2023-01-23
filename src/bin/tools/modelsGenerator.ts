@@ -1,7 +1,7 @@
-import { resolve } from "path";
-import { writeFileSync } from "fs";
+import { writeFile } from "node:fs/promises";
+import { resolve } from "node:path";
 
-import knex, { Knex } from "knex";
+import knex from "knex";
 
 interface GenericObject {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -14,36 +14,22 @@ const capitalizeFirstLetter = (s: string): string => s.charAt(0).toUpperCase() +
 
 const formatClassName = (tableName: string): string => capitalizeFirstLetter(snakeToCamel(tableName));
 
-const { MODELS_OUT_DIR, MODELS_CLASS_FACTORY_OUT_DIR, POSTGRES_DSN } = process.env;
+export default async ({
+  postgresDsn,
+  modelsOutDir: outModelsDir,
+  modelsClassFactoryOutDir: outClassFactoryDir,
+}: {
+  postgresDsn: string;
+  modelsOutDir: string;
+  modelsClassFactoryOutDir?: string;
+}) => {
+  const knexInstance = knex<any, any[]>({
+    client: "pg",
+    connection: postgresDsn,
+    useNullAsDefault: false,
+  });
 
-if (!MODELS_OUT_DIR) {
-  console.error(` [modelsGenerator] : MODELS_OUT_DIR env is required but not presented`);
-
-  process.exit(1);
-}
-
-if (!MODELS_CLASS_FACTORY_OUT_DIR) {
-  console.error(` [modelsGenerator] : MODELS_CLASS_FACTORY_OUT_DIR env is required but not presented`);
-
-  process.exit(1);
-}
-
-if (!POSTGRES_DSN) {
-  console.error(` [modelsGenerator] : POSTGRES_DSN env is required but not presented`);
-
-  process.exit(1);
-}
-
-const outModelsDir = resolve(MODELS_OUT_DIR);
-const outClassFactoryDir = resolve(MODELS_CLASS_FACTORY_OUT_DIR);
-
-const knexInstance = knex<any, any[]>({
-  client: "pg",
-  connection: POSTGRES_DSN,
-  useNullAsDefault: false,
-});
-
-const relationsQuery = `
+  const relationsQuery = `
 SELECT
     CAST(tc.table_schema AS varchar(255)) AS table_schema,
     CAST(tc.constraint_name AS varchar(255)) AS constraint_name,
@@ -67,8 +53,7 @@ ORDER BY
     tc.constraint_name;
 `;
 
-(async (knex: Knex): Promise<void> => {
-  const tableData = await knex //
+  const tableData = await knexInstance //
     .from("table_data")
     .where("is_ready", "=", true)
     .orderBy("name")
@@ -79,7 +64,7 @@ ORDER BY
     tableDataByTableName[tableData[i].name] = tableData[i];
   }
 
-  const relations = (await knex.raw(relationsQuery)).rows;
+  const relations = (await knexInstance.raw(relationsQuery)).rows;
 
   const relationsByTableName: GenericObject = {};
 
@@ -93,46 +78,47 @@ ORDER BY
     relationsByTableName[relation.table_name].push(relation);
   }
 
-  const classFactoryTxtLines = [
-    `/** This code is automatically generated. DO NOT EDIT! */
+  if (outClassFactoryDir) {
+    const classFactoryTxtLines = [
+      `/** This code is automatically generated. DO NOT EDIT! */
 
-import { Knex } from "knex";
+import { Model } from "@thebigsalmon/stingray/cjs/db/model";
+import { Knex } from "knex";  
+  `,
+    ];
 
-import { Model } from "@lib/db/model";
-`,
-  ];
+    classFactoryTxtLines.push(
+      `${tableData
+        .map(
+          (table: GenericObject) =>
+            `import { ${formatClassName(table.name)} } from "@models/${formatClassName(table.name)}";`,
+        )
+        .join("\n")}`,
+    );
+    classFactoryTxtLines.push(`
+  export const createInstance = (modelName: string, knex: Knex | Knex.Transaction): Model => {
+    switch (modelName) {`);
 
-  classFactoryTxtLines.push(
-    `${tableData
-      .map(
-        (table: GenericObject) =>
-          `import { ${formatClassName(table.name)} } from "@models/${formatClassName(table.name)}";`,
-      )
-      .join("\n")}`,
-  );
-  classFactoryTxtLines.push(`
-export const createInstance = (modelName: string, knex: Knex | Knex.Transaction): Model => {
-  switch (modelName) {`);
+    classFactoryTxtLines.push(
+      `${tableData
+        .map(
+          (table: GenericObject) =>
+            `    case "${formatClassName(table.name)}":
+        return new ${formatClassName(table.name)}(knex);`,
+        )
+        .join("\n")}`,
+    );
 
-  classFactoryTxtLines.push(
-    `${tableData
-      .map(
-        (table: GenericObject) =>
-          `    case "${formatClassName(table.name)}":
-      return new ${formatClassName(table.name)}(knex);`,
-      )
-      .join("\n")}`,
-  );
+    classFactoryTxtLines.push(
+      `    default:
+        throw new Error("Model cannot be found");
+    }
+  };
+  `,
+    );
 
-  classFactoryTxtLines.push(
-    `    default:
-      throw new Error("Model cannot be found");
+    await writeFile(resolve(outClassFactoryDir, "classFactoryModel.ts"), classFactoryTxtLines.join("\n"));
   }
-};
-`,
-  );
-
-  writeFileSync(resolve(outClassFactoryDir, "classFactoryModel.ts"), classFactoryTxtLines.join("\n"));
 
   for (let i = 0; i < tableData.length; i++) {
     const tableName = tableData[i].name;
@@ -222,10 +208,10 @@ export const createInstance = (modelName: string, knex: Knex | Knex.Transaction)
 
 /* eslint-disable @typescript-eslint/no-inferrable-types */
 
+import { ${modelType} } from "@thebigsalmon/stingray/cjs/db/model";
 import { Knex } from "knex";
 
-import { ${modelType} } from "@lib/db/model";
-${hasGenericObject ? `import { GenericObject } from "@lib/db/types";\n` : ""}
+${hasGenericObject ? `import { GenericObject } from "@thebigsalmon/stingray/cjs/db/types";\n` : ""}
 /* ${tableDataByTableName[tableName].caption} */
 export class ${className} extends ${modelType} {
   constructor(knex: Knex | Knex.Transaction) {
@@ -282,11 +268,9 @@ ${staticColumnsStrings.join("\n")}
       );
     }
 
-    writeFileSync(
+    await writeFile(
       resolve(outModelsDir, `${className}.ts`),
       modelTxtLines.join("\n\n") + `\n}\n\n/* eslint-enable @typescript-eslint/no-inferrable-types */\n`,
     );
   }
-
-  process.exit(0);
-})(knexInstance);
+};

@@ -1,7 +1,7 @@
-import { createWriteStream } from "fs";
-import { lstat, readdir } from "fs/promises";
-import { resolve } from "path";
-import { Readable } from "stream";
+import { createWriteStream } from "node:fs";
+import { lstat, readdir } from "node:fs/promises";
+import { resolve } from "node:path";
+import { Readable } from "node:stream";
 
 import * as TJS from "typescript-json-schema";
 
