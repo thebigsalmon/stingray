@@ -3,6 +3,7 @@ import { GenericObject } from "../db/types";
 export const CODE_INTERNAL_SERVER_ERROR = -32000;
 export const CODE_REQUEST_INVALID = -32600;
 export const CODE_METHOD_NOT_FOUND = -32601;
+export const CODE_INVALID_PARAMS = -32602;
 
 export class ClientError extends Error {
   code: number;

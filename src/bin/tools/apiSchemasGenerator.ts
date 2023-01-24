@@ -31,7 +31,7 @@ const template = compile(`/** This code is automatically generated. DO NOT EDIT!
 
 import { GenericObject } from "@thebigsalmon/stingray/cjs/db/types";
 import { JsonRpcServer } from "@thebigsalmon/stingray/cjs/server";
-import { generateObject } from "@thebigsalmon/stingray/cjs/schemaTraversal";
+import { generateObject, validateObject } from "@thebigsalmon/stingray/cjs/schemaTraversal";
 
 const requestSchemaByMethodName: GenericObject = {};
 const responseSchemaByMethodName: GenericObject = {};
@@ -44,6 +44,15 @@ const responseSchemaByMethodName: GenericObject = {};
   responseSchemaByMethodName["<%- schemas[i].routeName %>"] = <%- JSON.stringify(schemas[i].responseSchema) %>;
 <% } %>
 <% } %>
+
+export function registerRequestValidators(jsonRpcServer: JsonRpcServer): void {
+  Object.keys(requestSchemaByMethodName).forEach((methodName) => {
+    const validationFn = (source: GenericObject): GenericObject | null =>
+      validateObject(requestSchemaByMethodName[methodName], source);
+
+    jsonRpcServer.registerRequestValidator(methodName, validationFn);
+  });
+}
 
 export function registerResponsePickers(jsonRpcServer: JsonRpcServer): void {
   Object.keys(requestSchemaByMethodName).forEach((methodName) => {

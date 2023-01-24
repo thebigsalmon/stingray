@@ -6,10 +6,14 @@ import {
   createServer,
 } from "http";
 
+import {
+  JsonRpcRequestValidationError, //
+  JsonRpcServer,
+  JsonRpcServerError,
+} from "./index";
 import { ClientError } from "./errors";
 import { StopwatchTimer } from "../helpers/datetime";
 import { Logger } from "../log";
-import { JsonRpcServer, JsonRpcServerError } from "./index";
 import { GenericObject } from "../db/types";
 
 const handleError = (
@@ -28,11 +32,34 @@ const handleError = (
     // metrics.handleJsonRpcRequestError({ method: requestHeaders.methodName, domain: requestHeaders.domain });
   }
 
-  // TODO добавить проверку bad request (например, пришел невалидный json).
+  if (err instanceof JsonRpcRequestValidationError) {
+    res.writeHead(200, responseHeaders);
+    res.end(
+      JSON.stringify({
+        id: requestHeaders.messageId,
+        jsonrpc: "2.0",
+        error: { code: err.code, message: "Invalid request body", data: err.data },
+      }),
+    );
+
+    logger.error("Method ended with an error", {
+      errorMessage: err.message,
+      methodName: requestHeaders.methodName,
+      messageId: requestHeaders.messageId,
+    });
+
+    return;
+  }
 
   if (err instanceof JsonRpcServerError) {
     res.writeHead(200, responseHeaders);
-    res.end(JSON.stringify({ jsonrpc: "2.0", error: { code: err.code, message: err.message } }));
+    res.end(
+      JSON.stringify({
+        id: requestHeaders.messageId, //
+        jsonrpc: "2.0",
+        error: { code: err.code, message: err.message },
+      }),
+    );
 
     logger.error("Method ended with an error", {
       errorMessage: err.message,
@@ -49,6 +76,7 @@ const handleError = (
     res.writeHead(200, responseHeaders);
     res.end(
       JSON.stringify({
+        id: requestHeaders.messageId,
         jsonrpc: "2.0",
         error: {
           code: err.code, //
@@ -104,6 +132,7 @@ const handleJsonRpcRequest = async (
       buffers.push(chunk);
     }
 
+    // TODO добавить проверку парсинга с кодом ошибки -32700
     const body = JSON.parse(Buffer.concat(buffers).toString());
 
     const methodName = body?.method;
