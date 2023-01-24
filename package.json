@@ -1,6 +1,6 @@
 {
   "name": "@thebigsalmon/stingray",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "description": "",
   "main": "./dist/cjs/index.js",
   "module": "./dist/esm/index.js",
@@ -8,11 +8,16 @@
   "scripts": {
     "lint": "eslint \"src/{**/*,*}.{js,ts}\"",
     "prettier": "prettier --write \"{src,tests}/**/*.{js,ts}\"",
-    "build": "npm run build:esm && npm run build:cjs",
-    "build:esm": "tsc --outDir dist/esm",
-    "build:cjs": "tsc --module commonjs --outDir dist/cjs",
-    "prepare": "npm run build",
+    "clean": "rm -rf ./esm && rm -rf ./cjs && rm -rf ./bin",
+    "build": "npm run build:esm && npm run build:cjs && npm run build:bin",
+    "build:esm": "tsc --outDir esm",
+    "build:cjs": "tsc --module commonjs --outDir cjs",
+    "build:bin": "tsc -p ./tsconfig.bin.json",
+    "prepare": "npm run clean && npm run build",
     "prepublishOnly": "npm run prettier && npm run lint"
+  },
+  "bin": {
+    "stingray": "bin/index.js"
   },
   "keywords": [],
   "author": "",
@@ -30,18 +35,27 @@
     "prettier": "2.8.3"
   },
   "files": [
-    "dist",
+    "bin",
+    "cjs",
+    "esm",
     "README.md"
   ],
+  "peerDependencies": {
+    "knex": "1.0.3",
+    "typescript": "4.9.4"
+  },
   "dependencies": {
     "@aws-sdk/client-s3": "3.245.0",
     "ajv": "8.12.0",
     "archiver": "5.3.1",
     "axios": "1.2.2",
+    "commander": "10.0.0",
     "knex": "1.0.3",
     "node-schedule": "2.1.1",
+    "pg": "8.8.0",
     "sharp": "0.31.3",
     "typescript": "4.9.4",
+    "typescript-json-schema": "0.55.0",
     "uuid": "9.0.0"
   }
 }

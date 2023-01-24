@@ -17,6 +17,13 @@ function isLogLevel(level: string): level is LogLevel {
   return logLevelOrder.some((item) => (item as string) === level);
 }
 
+export const logLevelStrArr: LogLevel[] = [
+  "error", //
+  "warning",
+  "info",
+  "debug",
+];
+
 export class Logger {
   private logLevel: LogLevel;
 

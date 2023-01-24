@@ -6,12 +6,13 @@ export * from "./lib/db/types";
 export * from "./lib/db/util";
 
 /* files */
+export * from "./lib/files/providers/fs/index";
+export * from "./lib/files/providers/s3/index";
+
 export * from "./lib/files/constants";
 export * from "./lib/files/errors";
 export * from "./lib/files/index";
 export * from "./lib/files/mimes";
-export * from "./lib/files/providers/fs/index";
-export * from "./lib/files/providers/s3/index";
 
 /* helpers */
 export * from "./lib/helpers/datetime";
@@ -34,5 +35,6 @@ export * from "./lib/schemaTraversal/schemaTraversal";
 
 /* server */
 export * from "./lib/server/errors";
+export * from "./lib/server/httpServer";
 export * from "./lib/server/index";
 export * from "./lib/server/types";
