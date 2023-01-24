@@ -1,6 +1,10 @@
 import Ajv from "ajv";
 
-import { CODE_METHOD_NOT_FOUND, CODE_REQUEST_INVALID } from "./errors";
+import {
+  CODE_INVALID_PARAMS, //
+  CODE_METHOD_NOT_FOUND,
+  CODE_REQUEST_INVALID,
+} from "./errors";
 import { GenericObject } from "../db/types";
 
 const ajv = new Ajv();
@@ -12,6 +16,18 @@ export class JsonRpcServerError extends Error {
     super(message);
 
     this.code = code;
+  }
+}
+
+export class JsonRpcRequestValidationError extends Error {
+  code = CODE_INVALID_PARAMS;
+
+  data: GenericObject;
+
+  constructor(data: GenericObject) {
+    super("Invalid request");
+
+    this.data = data;
   }
 }
 
@@ -60,10 +76,16 @@ const schema = {
 export class JsonRpcServer {
   private handlers: { [methodName: string]: JsonRpcHandler<GenericObject, GenericObject> } = {};
 
+  private requestValidators: { [methodName: string]: (request: GenericObject) => GenericObject | null } = {};
+
   private responsePickers: { [methodName: string]: (response: GenericObject) => GenericObject } = {};
 
   registerHandler(handler: JsonRpcHandler<GenericObject, GenericObject>): void {
     this.handlers[handler.methodName] = handler;
+  }
+
+  registerRequestValidator(methodName: string, validator: (request: GenericObject) => GenericObject | null): void {
+    this.requestValidators[methodName] = validator;
   }
 
   registerResponsePicker(methodName: string, picker: (response: GenericObject) => GenericObject): void {
@@ -73,7 +95,7 @@ export class JsonRpcServer {
   async handle(request: jsonRpcRequest): Promise<GenericObject> {
     const validate = ajv.compile<jsonRpcRequest>(schema);
     if (!validate(request)) {
-      throw new JsonRpcServerError("request is not valid", CODE_REQUEST_INVALID);
+      throw new JsonRpcServerError("Invalid jsonRPC request", CODE_REQUEST_INVALID);
     }
 
     const {
@@ -96,6 +118,11 @@ export class JsonRpcServer {
     let { params } = request;
     if (!params) {
       params = {} as jsonRpcParams;
+    }
+
+    const validationErrors = this.requestValidators[method](params);
+    if (validationErrors) {
+      throw new JsonRpcRequestValidationError(validationErrors);
     }
 
     for (let i = 0; i < handler.middlewares.length; i++) {

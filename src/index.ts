@@ -32,6 +32,7 @@ export * from "./lib/schedule/types";
 
 /* schemaTraversal */
 export * from "./lib/schemaTraversal/schemaTraversal";
+export * from "./lib/schemaTraversal/validateObject";
 
 /* server */
 export * from "./lib/server/errors";
