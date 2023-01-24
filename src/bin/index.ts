@@ -8,6 +8,7 @@ import modelsGenerator from "./tools/modelsGenerator";
 import tablesGenerator from "./tools/tablesGenerator";
 import openapiGenerator from "./tools/openapiGenerator";
 import responseGenerator from "./tools/responseGenerator";
+import apiSchemasGenerator from "./tools/apiSchemasGenerator";
 
 program //
   .name("stingray")
@@ -91,6 +92,18 @@ program
   .action(async ({ projectRootDir }) => {
     await openapiGenerator({
       projectRootDir,
+    });
+  });
+
+program
+  .command("apiSchemasGenerator")
+  .description("Generates response pickers schemas and registrator")
+  .requiredOption("--project-root-dir <type>", "path to stingray-based project")
+  .requiredOption("--out-dir <type>", "path to the generated file")
+  .action(async ({ projectRootDir, outDir }) => {
+    await apiSchemasGenerator({
+      projectRootDir,
+      outDir,
     });
   });
 

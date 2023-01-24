@@ -58,10 +58,16 @@ const schema = {
 };
 
 export class JsonRpcServer {
-  private handlers: { [key: string]: JsonRpcHandler<GenericObject, GenericObject> } = {};
+  private handlers: { [methodName: string]: JsonRpcHandler<GenericObject, GenericObject> } = {};
 
-  registerHandler(handler: JsonRpcHandler<GenericObject, GenericObject>) {
+  private responsePickers: { [methodName: string]: (response: GenericObject) => GenericObject } = {};
+
+  registerHandler(handler: JsonRpcHandler<GenericObject, GenericObject>): void {
     this.handlers[handler.methodName] = handler;
+  }
+
+  registerResponsePicker(methodName: string, picker: (response: GenericObject) => GenericObject): void {
+    this.responsePickers[methodName] = picker;
   }
 
   async handle(request: jsonRpcRequest): Promise<GenericObject> {
@@ -96,7 +102,10 @@ export class JsonRpcServer {
       params = await handler.middlewares[i]({ params, headers: requestHeaders });
     }
 
-    const result = await handler.handle(params || {}, requestHeaders);
+    const handlerResult = await handler.handle(params || {}, requestHeaders);
+
+    const responsePicker = this.responsePickers[method];
+    const result = responsePicker ? responsePicker(handlerResult) : handlerResult;
 
     return {
       id, //

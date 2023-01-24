@@ -1,6 +1,6 @@
 {
   "name": "@thebigsalmon/stingray",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "",
   "main": "./dist/cjs/index.js",
   "module": "./dist/esm/index.js",
@@ -24,6 +24,7 @@
   "license": "ISC",
   "devDependencies": {
     "@types/archiver": "5.3.1",
+    "@types/ejs": "3.1.1",
     "@types/node": "18.11.18",
     "@types/node-schedule": "2.1.0",
     "@types/sharp": "0.31.1",
@@ -50,6 +51,7 @@
     "archiver": "5.3.1",
     "axios": "1.2.2",
     "commander": "10.0.0",
+    "ejs": "3.1.8",
     "knex": "1.0.3",
     "node-schedule": "2.1.1",
     "pg": "8.8.0",
