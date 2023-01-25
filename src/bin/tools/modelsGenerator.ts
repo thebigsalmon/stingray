@@ -157,6 +157,7 @@ import { Knex } from "knex";
           break;
         case "jsonb":
         case "json":
+        case "point":
           fieldType = "GenericObject";
           defaultValue = "{}";
           hasGenericObject = true;

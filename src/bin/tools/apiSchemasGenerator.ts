@@ -55,9 +55,9 @@ export function registerRequestValidators(jsonRpcServer: JsonRpcServer): void {
 }
 
 export function registerResponsePickers(jsonRpcServer: JsonRpcServer): void {
-  Object.keys(requestSchemaByMethodName).forEach((methodName) => {
+  Object.keys(responseSchemaByMethodName).forEach((methodName) => {
     const pickerFn = (source: GenericObject) =>
-      generateObject(source, requestSchemaByMethodName[methodName]) as Response;
+      generateObject(source, responseSchemaByMethodName[methodName]) as Response;
 
     jsonRpcServer.registerResponsePicker(methodName, pickerFn);
   });
