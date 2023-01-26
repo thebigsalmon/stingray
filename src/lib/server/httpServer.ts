@@ -166,10 +166,11 @@ const handleJsonRpcRequest = async (
     //   domain,
     // });
 
-    const result = await jsonRpcServer.handle(body);
+    const { jsonRpcResponse, jsonRpcHeaders } = await jsonRpcServer.handle(body, req.headers);
 
-    res.writeHead(200, responseHeaders);
-    res.end(JSON.stringify(result));
+    res.writeHead(200, { ...responseHeaders, ...jsonRpcHeaders });
+
+    res.end(JSON.stringify(jsonRpcResponse));
 
     const duration = stopwatchTimer.getElapsedMilliSecondsNumber();
     // TODO add event
