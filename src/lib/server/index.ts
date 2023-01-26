@@ -1,3 +1,5 @@
+import { IncomingHttpHeaders } from "http";
+
 import Ajv from "ajv";
 
 import {
@@ -31,19 +33,20 @@ export class JsonRpcRequestValidationError extends Error {
   }
 }
 
-type jsonRpcParams = { sessId: string } & GenericObject;
+export type JsonRpcParams = GenericObject;
 
 export interface jsonRpcRequest extends GenericObject {
   jsonrpc: string;
   id: string;
   method: string;
-  params?: jsonRpcParams;
+  params?: JsonRpcParams;
 }
 
 export type JsonRpcMiddleware = (params: {
-  params: jsonRpcParams;
+  params: JsonRpcParams;
   headers: JsonRpcRequestHeaders;
-}) => Promise<jsonRpcParams>;
+  httpHeaders: IncomingHttpHeaders;
+}) => Promise<JsonRpcParams>;
 
 export type JsonRpcRequestHeaders = {
   jsonrpc: string; //
@@ -51,10 +54,17 @@ export type JsonRpcRequestHeaders = {
   method: string;
 };
 
+type ResponseBody<T> = T;
+
+export type ResponseFullSigrature<T> = { responseBody?: T; responseHeaders?: GenericObject };
+
 export abstract class JsonRpcHandler<Request extends GenericObject, Response extends GenericObject | void> {
   abstract methodName: string;
   abstract middlewares: JsonRpcMiddleware[];
-  abstract handle(request: Request, rawRequest?: JsonRpcRequestHeaders): Promise<Response>;
+  abstract handle(
+    request: Request,
+    rawRequest?: JsonRpcRequestHeaders,
+  ): Promise<ResponseBody<Response> | ResponseFullSigrature<Response>>;
 }
 
 const schema = {
@@ -71,6 +81,18 @@ const schema = {
     "method",
   ],
   additionalProperties: false,
+};
+
+const isResponseFullSigrature = <T>(source: GenericObject): source is ResponseFullSigrature<T> => {
+  if (source.responseBody) {
+    return true;
+  }
+
+  if (source.responseHeaders) {
+    return true;
+  }
+
+  return false;
 };
 
 export class JsonRpcServer {
@@ -92,7 +114,10 @@ export class JsonRpcServer {
     this.responsePickers[methodName] = picker;
   }
 
-  async handle(request: jsonRpcRequest): Promise<GenericObject> {
+  async handle(
+    request: jsonRpcRequest,
+    httpRequestHeaders: IncomingHttpHeaders,
+  ): Promise<{ jsonRpcResponse: GenericObject; jsonRpcHeaders: GenericObject }> {
     const validate = ajv.compile<jsonRpcRequest>(schema);
     if (!validate(request)) {
       throw new JsonRpcServerError("Invalid jsonRPC request", CODE_REQUEST_INVALID);
@@ -117,27 +142,47 @@ export class JsonRpcServer {
 
     let { params } = request;
     if (!params) {
-      params = {} as jsonRpcParams;
+      params = {} as JsonRpcParams;
     }
 
-    const validationErrors = this.requestValidators[method](params);
+    const validator = this.requestValidators[method];
+    const validationErrors = validator ? validator(params) : false;
+
     if (validationErrors) {
       throw new JsonRpcRequestValidationError(validationErrors);
     }
 
     for (let i = 0; i < handler.middlewares.length; i++) {
-      params = await handler.middlewares[i]({ params, headers: requestHeaders });
+      params = await handler.middlewares[i]({
+        params, //
+        headers: requestHeaders,
+        httpHeaders: httpRequestHeaders,
+      });
     }
 
     const handlerResult = await handler.handle(params || {}, requestHeaders);
 
+    let handlerResponseBody: ResponseBody<Response>;
+    let handlerResponseHeaders: GenericObject;
+
+    if (isResponseFullSigrature<Response>(handlerResult)) {
+      handlerResponseBody = handlerResult.responseBody ?? ({} as Response);
+      handlerResponseHeaders = handlerResult.responseHeaders ?? {};
+    } else {
+      handlerResponseBody = handlerResult as Response;
+      handlerResponseHeaders = {};
+    }
+
     const responsePicker = this.responsePickers[method];
-    const result = responsePicker ? responsePicker(handlerResult) : handlerResult;
+    const result = responsePicker ? responsePicker(handlerResponseBody) : handlerResponseBody;
 
     return {
-      id, //
-      jsonrpc,
-      result,
+      jsonRpcResponse: {
+        id, //
+        jsonrpc,
+        result,
+      },
+      jsonRpcHeaders: handlerResponseHeaders,
     };
   }
 }

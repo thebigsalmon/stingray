@@ -30,17 +30,17 @@ const settings: TJS.PartialArgs = {
 const template = compile(`/** This code is automatically generated. DO NOT EDIT! */
 
 import { GenericObject } from "@thebigsalmon/stingray/cjs/db/types";
-import { JsonRpcServer } from "@thebigsalmon/stingray/cjs/server";
 import { generateObject, validateObject } from "@thebigsalmon/stingray/cjs/schemaTraversal";
+import { JsonRpcServer } from "@thebigsalmon/stingray/cjs/server";
 
 const requestSchemaByMethodName: GenericObject = {};
 const responseSchemaByMethodName: GenericObject = {};
 
 <% for (let i = 0; i < schemas.length; i++) { %>
-<% if (schemas[i].requestSchema) { %>
+<% if (schemas[i].requestSchema && Object.keys(schemas[i].requestSchema).length !== 0) { %>
   requestSchemaByMethodName["<%- schemas[i].routeName %>"] = <%- JSON.stringify(schemas[i].requestSchema) %>;
 <% } %>
-<% if (schemas[i].responseSchema) { %>
+<% if (schemas[i].responseSchema && Object.keys(schemas[i].responseSchema).length !== 0) { %>
   responseSchemaByMethodName["<%- schemas[i].routeName %>"] = <%- JSON.stringify(schemas[i].responseSchema) %>;
 <% } %>
 <% } %>
