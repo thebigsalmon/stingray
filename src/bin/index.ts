@@ -9,6 +9,7 @@ import tablesGenerator from "./tools/tablesGenerator";
 import openapiGenerator from "./tools/openapiGenerator";
 import responseGenerator from "./tools/responseGenerator";
 import apiSchemasGenerator from "./tools/apiSchemasGenerator";
+import apiClientGenerator from "./tools/apiClientGenerator";
 
 program //
   .name("stingray")
@@ -106,6 +107,26 @@ program
       outDir,
     });
   });
+
+program
+  .command("apiClientGenerator")
+  .description("Generates response pickers schemas and registrator")
+  .requiredOption("--project-root-dir <type>", "path to stingray-based project")
+  .requiredOption("--out-dir <type>", "path to the generated file")
+  .option("--rpc-client-import-path <type>", "path to rpc client in import string")
+  .action(
+    async ({
+      projectRootDir, //
+      outDir,
+      rpcClientImportPath,
+    }) => {
+      await apiClientGenerator({
+        projectRootDir,
+        outDir,
+        rpcClientImportPath,
+      });
+    },
+  );
 
 function makeMigratorCommand() {
   const migratorCommand = new Command("migrator");

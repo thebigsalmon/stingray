@@ -210,9 +210,10 @@ import { Knex } from "knex";
 /* eslint-disable @typescript-eslint/no-inferrable-types */
 
 import { ${modelType} } from "@thebigsalmon/stingray/cjs/db/model";
-import { Knex } from "knex";
+${
+  hasGenericObject ? `import { GenericObject } from "@thebigsalmon/stingray/cjs/db/types";\n` : ""
+}import { Knex } from "knex";
 
-${hasGenericObject ? `import { GenericObject } from "@thebigsalmon/stingray/cjs/db/types";\n` : ""}
 /* ${tableDataByTableName[tableName].caption} */
 export class ${className} extends ${modelType} {
   constructor(knex: Knex | Knex.Transaction) {
