@@ -1,3 +1,7 @@
+import { Knex } from "knex";
+
+import { Model } from "./model";
+
 export interface GenericObject {
   [key: string]: any;
 }
@@ -29,10 +33,13 @@ export interface Relation {
   };
 }
 
+export type ModelClassType = new (knex: Knex | Knex.Transaction) => Model;
+
 export interface Table {
   name?: string;
   tableName: string;
   relations?: Relation[];
   alias: string;
   columns: string[];
+  modelClassType: ModelClassType;
 }
