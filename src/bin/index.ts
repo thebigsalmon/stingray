@@ -53,17 +53,20 @@ program
   .description("Generates models from postgres tables")
   .requiredOption("--postgres-dsn <type>", "postgres connection string")
   .requiredOption("--models-out-dir <type>", "path to models out dir")
+  .option("--ingore-models-relations-classes <type>", "model classes that will not process relations")
   .option("--models-class-factory-out-dir <type>", "if presented, classFactory will be saved under this path")
   .action(
     async ({
       postgresDsn, //
       modelsOutDir,
       modelsClassFactoryOutDir,
+      ingoreModelsRelationsClasses,
     }) => {
       await modelsGenerator({
         postgresDsn,
         modelsOutDir,
         modelsClassFactoryOutDir,
+        ingoreModelsRelationsClassesParam: ingoreModelsRelationsClasses,
       });
 
       // TODO выяснить, почему выход не происходит автоматически.

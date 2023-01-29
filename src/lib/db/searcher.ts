@@ -1,7 +1,13 @@
 import { Knex } from "knex";
 
 import { normalizeDirection, snakeToCamel } from "./util";
-import { GenericObject, Relation, relationType, Table } from "./types";
+import {
+  GenericObject, //
+  ModelClassType,
+  Relation,
+  relationType,
+  Table,
+} from "./types";
 
 // import { tables } from "../../tables";
 
@@ -414,10 +420,14 @@ export class Searcher<T> {
       let columns: string[] = [];
       let prefix = "";
 
+      let modelConstructorFn: ModelClassType;
+
       if (previousJoinKey) {
         const previousTable = findTable(previousJoinKey);
         const relation = findRelation(previousTable, currentJoinKey);
         const currentTable = findTable(relation.tableName);
+
+        modelConstructorFn = currentTable.modelClassType;
 
         localCacheKey = relation.extra ? relation.extra.alias : currentTable.tableName;
         prefix = relation.extra ? relation.extra.prefix : currentTable.tableName;
@@ -430,6 +440,8 @@ export class Searcher<T> {
           throw new Error(`Table ${currentJoinKey} is not presented in tables list`);
         }
 
+        modelConstructorFn = currentTable.modelClassType;
+
         localCacheKey = currentTable.tableName;
         columns = currentTable.columns;
         prefix = currentTable.tableName;
@@ -439,7 +451,7 @@ export class Searcher<T> {
         localCache[localCacheKey] = {};
       }
 
-      let currentEntity: GenericObject = {};
+      let currentEntity = new modelConstructorFn(this.knex);
 
       if (!isDummyData) {
         const currentTableId = record[`${localCacheKey}_id`];
@@ -451,13 +463,13 @@ export class Searcher<T> {
 
             // По договорённости у нас все поля вида entityNameId - строки.
             if ((columnCamelCase === "id" || columnCamelCase.endsWith("Id")) && record[`${prefix}_${column}`]) {
-              currentEntity[columnCamelCase] = record[`${prefix}_${column}`].toString();
+              (currentEntity as GenericObject)[columnCamelCase] = record[`${prefix}_${column}`].toString();
             } else {
-              currentEntity[columnCamelCase] = record[`${prefix}_${column}`];
+              (currentEntity as GenericObject)[columnCamelCase] = record[`${prefix}_${column}`];
             }
           });
 
-          localCache[localCacheKey][currentEntity.id] = currentEntity;
+          localCache[localCacheKey][(currentEntity as GenericObject).id] = currentEntity;
         }
       }
 

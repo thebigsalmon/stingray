@@ -3,6 +3,8 @@ import { resolve } from "node:path";
 
 import knex from "knex";
 
+import { tablesGeneratorFn } from "./common/tablesGeneratorFn";
+
 interface GenericObject {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   [key: string]: any;
@@ -14,20 +16,74 @@ const capitalizeFirstLetter = (s: string): string => s.charAt(0).toUpperCase() +
 
 const formatClassName = (tableName: string): string => capitalizeFirstLetter(snakeToCamel(tableName));
 
+const relationImportsComparator = (aSrc: string, bSrc: string): number => {
+  const a = aSrc.split("./")[1].replace(`"`, "");
+  const b = bSrc.split("./")[1].replace(`"`, "");
+
+  if (a.startsWith(b)) {
+    return 1;
+  }
+
+  if (b.startsWith(a)) {
+    return -1;
+  }
+
+  if (a < b) {
+    return -1;
+  }
+
+  if (b < a) {
+    return 1;
+  }
+
+  return 0;
+};
+
+const relationFieldsComparator = (aSrc: string, bSrc: string): number => {
+  const a = aSrc.split("?")[0].trim();
+  const b = bSrc.split("?")[0].trim();
+
+  if (a.startsWith(b)) {
+    return 1;
+  }
+
+  if (b.startsWith(a)) {
+    return -1;
+  }
+
+  if (a < b) {
+    return -1;
+  }
+
+  if (b < a) {
+    return 1;
+  }
+
+  return 0;
+};
+
 export default async ({
   postgresDsn,
   modelsOutDir: outModelsDir,
   modelsClassFactoryOutDir: outClassFactoryDir,
+  ingoreModelsRelationsClassesParam = "",
 }: {
   postgresDsn: string;
   modelsOutDir: string;
   modelsClassFactoryOutDir?: string;
+  ingoreModelsRelationsClassesParam?: string;
 }) => {
   const knexInstance = knex<any, any[]>({
     client: "pg",
     connection: postgresDsn,
     useNullAsDefault: false,
   });
+
+  const ingoreModelsRelationsClasses = ingoreModelsRelationsClassesParam //
+    .split(",")
+    .map(capitalizeFirstLetter);
+
+  const tables = await tablesGeneratorFn(knexInstance);
 
   const relationsQuery = `
 SELECT
@@ -200,7 +256,45 @@ import { Knex } from "knex";
       staticColumnsStrings.push(`      ${camelCaseFieldName}: "${tableDataByTableName[tableName].short}.${key}",`);
     }
 
-    const className = capitalizeFirstLetter(snakeToCamel(tableName));
+    const table = tables.find((t: GenericObject) => t.tableName === tableName);
+
+    const modelClassName = capitalizeFirstLetter(snakeToCamel(tableName));
+
+    const importModels: string[] = [];
+    const relationModelsFields: string[] = [];
+    const relationModelsGetters: string[] = [];
+
+    (table as any).relations.forEach(
+      ({
+        tableName, //
+        name,
+        relationType,
+      }: {
+        tableName: string;
+        name: string;
+        relationType: string;
+      }) => {
+        const className = capitalizeFirstLetter(snakeToCamel(tableName));
+
+        const str = `import {${className}} from "./${className}"`;
+
+        const modelType = `${className}${relationType === "relationType.hasMany" ? `[]` : ""}`;
+
+        if (!importModels.includes(str)) {
+          importModels.push(str);
+        }
+
+        relationModelsFields.push(`  private ${name}?: ${modelType};`);
+
+        relationModelsGetters.push(`  get${capitalizeFirstLetter(name)}(): ${modelType} {
+    if (!this.${name}) {
+      throw new Error("Attempt to reach missing field ${className} of model ${modelClassName}");
+    }
+
+    return this.${name};
+  }\n`);
+      },
+    );
 
     const modelType = tableDataByTableName[tableName].is_file_table ? "FileModel" : "Model";
 
@@ -212,22 +306,37 @@ import { Knex } from "knex";
 import { ${modelType} } from "@thebigsalmon/stingray/cjs/db/model";
 ${
   hasGenericObject ? `import { GenericObject } from "@thebigsalmon/stingray/cjs/db/types";\n` : ""
-}import { Knex } from "knex";
+}import { Knex } from "knex";`,
+    ];
 
-/* ${tableDataByTableName[tableName].caption} */
-export class ${className} extends ${modelType} {
+    if (importModels.length !== 0 && !ingoreModelsRelationsClasses.includes(modelClassName)) {
+      modelTxtLines.push(`${importModels.sort(relationImportsComparator).join(`;\n`)}`);
+    }
+
+    modelTxtLines.push(`/* ${tableDataByTableName[tableName].caption} */
+export class ${modelClassName} extends ${modelType} {
   constructor(knex: Knex | Knex.Transaction) {
-    super(knex, "${tableName}", "${
-        tableDataByTableName[tableName].short
-      }", ${className}.columns, ${className}.foreignKeys);
+    super(knex,
+      "${tableName}",
+      "${tableDataByTableName[tableName].short}",
+      ${modelClassName}.columns,
+      ${modelClassName}.foreignKeys,
+    );
   }
 
   static id = "${tableDataByTableName[tableName].short}.id";
   static tableName = "${tableName}";
-  static alias = "${tableDataByTableName[tableName].short}";`,
-    ];
+  static alias = "${tableDataByTableName[tableName].short}";`);
 
     modelTxtLines.push(fields.join("\n"));
+
+    if (!ingoreModelsRelationsClasses.includes(modelClassName)) {
+      modelTxtLines.push(relationModelsFields.sort(relationFieldsComparator).join("\n"));
+    }
+
+    if (!ingoreModelsRelationsClasses.includes(modelClassName)) {
+      modelTxtLines.push(relationModelsGetters.join("\n"));
+    }
 
     modelTxtLines.push(
       `  static get columns() {
@@ -271,7 +380,7 @@ ${staticColumnsStrings.join("\n")}
     }
 
     await writeFile(
-      resolve(outModelsDir, `${className}.ts`),
+      resolve(outModelsDir, `${modelClassName}.ts`),
       modelTxtLines.join("\n\n") + `\n}\n\n/* eslint-enable @typescript-eslint/no-inferrable-types */\n`,
     );
   }
