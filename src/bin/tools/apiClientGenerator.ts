@@ -174,10 +174,6 @@ export default async function ({
     const indexFileExportLines: string[] = [];
 
     for (let i = 0; i < routes.length; i++) {
-      if (!routes[i].apiFileName) {
-        continue;
-      }
-
       const importValues: string[] = [];
 
       const fullRouteSigrature = [
@@ -188,29 +184,36 @@ export default async function ({
       const fullRouteNameWhole = fullRouteSigrature.join("");
       const fullRouteNameDotted = fullRouteSigrature.join(".");
 
-      const mapKey = `${routeFolder}/${routes[i].apiFileName!}`;
+      let hasRequest = false;
+      let hasResponse = false;
+      let requestTypeString = "never";
+      let responseTypeString = "void";
 
-      const hasRequest = requestSymbolByFullFileName.has(mapKey);
-      const hasResponse = responseSymbolByFullFileName.has(mapKey);
+      if (routes[i].apiFileName) {
+        const mapKey = `${routeFolder}/${routes[i].apiFileName!}`;
 
-      if (hasRequest) {
-        importValues.push(`Request as ${fullRouteNameWhole}Request`);
+        hasRequest = requestSymbolByFullFileName.has(mapKey);
+        hasResponse = responseSymbolByFullFileName.has(mapKey);
+
+        if (hasRequest) {
+          importValues.push(`Request as ${fullRouteNameWhole}Request`);
+        }
+        if (hasResponse) {
+          importValues.push(`Response as ${fullRouteNameWhole}Response`);
+        }
+
+        indexFileImportLines.push(
+          `import {${importValues.join()}} from "./types/${routes[i].apiFileName!.replace(".ts", "")}";`,
+        );
+
+        requestTypeString = hasRequest ? `${fullRouteNameWhole}Request` : "never";
+        responseTypeString = hasResponse ? `${fullRouteNameWhole}Response` : "void";
       }
-      if (hasResponse) {
-        importValues.push(`Response as ${fullRouteNameWhole}Response`);
-      }
-
-      indexFileImportLines.push(
-        `import {${importValues.join()}} from "./types/${routes[i].apiFileName!.replace(".ts", "")}";`,
-      );
-
-      const requestTypeString = hasRequest ? `${fullRouteNameWhole}Request` : "never";
-      const responseTypeString = hasResponse ? `${fullRouteNameWhole}Response` : "never";
 
       indexFileExportLines.push(`export async function ${fullRouteNameWhole}(${
         hasRequest ? `params: ${requestTypeString}` : ""
       }): Promise<${responseTypeString}> {
-  const response = await rpc<
+  ${hasResponse ? `const response = ` : ""}await rpc<
     ${requestTypeString},
     ${responseTypeString}
   >("${fullRouteNameDotted}"${hasRequest ? `, params` : ""});

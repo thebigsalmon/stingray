@@ -201,14 +201,20 @@ const handleJsonRpcRequest = async (
   }
 };
 
-const requestListener: (jsonRpcServer: JsonRpcServer, logger: Logger) => RequestListener =
-  (jsonRpcServer: JsonRpcServer, logger: Logger) => async (req, res) => {
-    const headers = {
-      "Access-Control-Allow-Origin": "*",
-      "Access-Control-Allow-Methods": "OPTIONS, POST",
-      "Access-Control-Max-Age": 2592000, // 30 days
-      "Access-Control-Allow-Headers": "*",
-    };
+const requestListener: (
+  jsonRpcServer: JsonRpcServer,
+  logger: Logger,
+  headersFn: () => GenericObject,
+) => RequestListener =
+  (jsonRpcServer: JsonRpcServer, logger: Logger, headersFn: () => GenericObject) => async (req, res) => {
+    const headers = headersFn
+      ? headersFn()
+      : {
+          "Access-Control-Allow-Origin": "*",
+          "Access-Control-Allow-Methods": "OPTIONS, POST",
+          "Access-Control-Max-Age": 2592000, // 30 days
+          "Access-Control-Allow-Headers": "*",
+        };
 
     if (req.method === "OPTIONS") {
       res.writeHead(204, headers);
@@ -232,8 +238,12 @@ const requestListener: (jsonRpcServer: JsonRpcServer, logger: Logger) => Request
     res.end("Not found");
   };
 
-export function createJsonRpcHttpServer(jsonRpcServer: JsonRpcServer, logger: Logger): Server {
-  const httpServer = createServer(requestListener(jsonRpcServer, logger));
+export function createJsonRpcHttpServer(
+  jsonRpcServer: JsonRpcServer,
+  logger: Logger,
+  headersFn: () => GenericObject,
+): Server {
+  const httpServer = createServer(requestListener(jsonRpcServer, logger, headersFn));
 
   return httpServer;
 }
