@@ -3,10 +3,10 @@ import {
   readdir, //
   lstat,
   mkdir,
-  readFile,
   writeFile,
 } from "node:fs/promises";
 
+import { compile } from "json-schema-to-typescript";
 import * as TJS from "typescript-json-schema";
 
 type Folder = {
@@ -154,12 +154,41 @@ export default async function ({
     await mkdir(itemTypesFullOutFolderName, { recursive: true });
 
     if (routes[i].apiFileName) {
-      const apiFileContent = await readFile(
-        resolve(projectRootDir, "src", "routes", ...routes[i].folders, routes[i].apiFileName!),
-        "utf-8",
-      );
+      const fullFileName = `${routes[i].folders.join("/")}/${routes[i].apiFileName}`;
 
-      await writeFile(resolve(itemTypesFullOutFolderName, routes[i].apiFileName!), apiFileContent);
+      const fullRouteName = `${routes[i].folders.map(capitalizeFirstLetter).join("")}${routes[i]
+        .apiFileName!.slice(0, -".api.ts".length)
+        .split(".")
+        .map(capitalizeFirstLetter)
+        .join("")}`;
+
+      const apiFileLines: string[] = [];
+
+      const requestSymbol = requestSymbolByFullFileName.get(fullFileName);
+      if (requestSymbol) {
+        const schema = generator.getSchemaForSymbol(requestSymbol.name);
+
+        apiFileLines.push(
+          await compile(schema as any, `${fullRouteName}Request`, {
+            additionalProperties: false,
+            bannerComment: "",
+          }),
+        );
+      }
+
+      const responseSymbol = responseSymbolByFullFileName.get(fullFileName);
+      if (responseSymbol) {
+        const schema = generator.getSchemaForSymbol(responseSymbol.name);
+
+        apiFileLines.push(
+          await compile(schema as any, `${fullRouteName}Response`, {
+            additionalProperties: false,
+            bannerComment: "",
+          }),
+        );
+      }
+
+      await writeFile(resolve(itemTypesFullOutFolderName, routes[i].apiFileName!), apiFileLines.join("\n"));
     }
 
     const mapKey = routes[i].folders.join("/");
@@ -171,11 +200,10 @@ export default async function ({
 
   for (const [routeFolder, routes] of routesByRelativeOutDir.entries()) {
     const indexFileImportLines: string[] = [];
+    const indexFileExportTypesLines: string[] = [];
     const indexFileExportLines: string[] = [];
 
     for (let i = 0; i < routes.length; i++) {
-      const importValues: string[] = [];
-
       const fullRouteSigrature = [
         ...routes[i].folders,
         ...routes[i].handlerFileName.replace(".handler.ts", "").split("."),
@@ -190,24 +218,29 @@ export default async function ({
       let responseTypeString = "void";
 
       if (routes[i].apiFileName) {
+        const importValues: string[] = [];
+
         const mapKey = `${routeFolder}/${routes[i].apiFileName!}`;
 
         hasRequest = requestSymbolByFullFileName.has(mapKey);
         hasResponse = responseSymbolByFullFileName.has(mapKey);
 
         if (hasRequest) {
-          importValues.push(`Request as ${fullRouteNameWhole}Request`);
+          importValues.push(`${capitalizeFirstLetter(fullRouteNameWhole)}Request`);
         }
         if (hasResponse) {
-          importValues.push(`Response as ${fullRouteNameWhole}Response`);
+          importValues.push(`${capitalizeFirstLetter(fullRouteNameWhole)}Response`);
         }
 
         indexFileImportLines.push(
           `import {${importValues.join()}} from "./types/${routes[i].apiFileName!.replace(".ts", "")}";`,
         );
+        indexFileExportTypesLines.push(
+          `export type {${importValues.join()}} from "./types/${routes[i].apiFileName!.replace(".ts", "")}";`,
+        );
 
-        requestTypeString = hasRequest ? `${fullRouteNameWhole}Request` : "never";
-        responseTypeString = hasResponse ? `${fullRouteNameWhole}Response` : "void";
+        requestTypeString = hasRequest ? `${capitalizeFirstLetter(fullRouteNameWhole)}Request` : "never";
+        responseTypeString = hasResponse ? `${capitalizeFirstLetter(fullRouteNameWhole)}Response` : "void";
       }
 
       indexFileExportLines.push(`export async function ${fullRouteNameWhole}(${
@@ -226,6 +259,8 @@ export default async function ({
 import { rpc } from "${rpcClientImportPath}";
 
 ${indexFileImportLines.join("\n")}
+
+${indexFileExportTypesLines.join("\n")}
 
 ${indexFileExportLines.join("\n\n")}
 `;
