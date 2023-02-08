@@ -165,7 +165,7 @@ export class JsonRpcServer {
     let handlerResponseBody: ResponseBody<Response>;
     let handlerResponseHeaders: GenericObject;
 
-    if (isResponseFullSigrature<Response>(handlerResult)) {
+    if (handlerResult && isResponseFullSigrature<Response>(handlerResult)) {
       handlerResponseBody = handlerResult.responseBody ?? ({} as Response);
       handlerResponseHeaders = handlerResult.responseHeaders ?? {};
     } else {
