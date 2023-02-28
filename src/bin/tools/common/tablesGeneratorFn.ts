@@ -103,7 +103,6 @@ ORDER BY
 
       obj.name = snakeToCamel(prefix);
 
-      const mainTableShort = tableByName[relation.table_name].short;
       const foreignTableShort = tableByName[foreignTableName].short;
 
       const uniquePart = prefix.substring(foreignTableName.length);
