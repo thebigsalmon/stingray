@@ -114,8 +114,6 @@ ORDER BY
           alias,
           prefix,
         };
-
-        obj.condition = `${mainTableShort}.${prefix}_id = ${alias}.id and ${alias}.date_deleted is null`;
       }
 
       resultByTableName[tableName].relations.push(obj);
