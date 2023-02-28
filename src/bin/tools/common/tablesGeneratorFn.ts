@@ -103,7 +103,6 @@ ORDER BY
 
       obj.name = snakeToCamel(prefix);
 
-      const mainTableShort = tableByName[relation.table_name].short;
       const foreignTableShort = tableByName[foreignTableName].short;
 
       const uniquePart = prefix.substring(foreignTableName.length);
@@ -114,8 +113,6 @@ ORDER BY
           alias,
           prefix,
         };
-
-        obj.condition = `${mainTableShort}.${prefix}_id = ${alias}.id and ${alias}.date_deleted is null`;
       }
 
       resultByTableName[tableName].relations.push(obj);

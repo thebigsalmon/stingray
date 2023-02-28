@@ -278,28 +278,20 @@ export class Searcher<T> {
       query: Knex.QueryBuilder;
     }) => {
       if (previousRootChildRelation.relationType === relationType.belongsToOne) {
-        if (previousRootChildRelation.condition) {
-          const alias = previousRootChildRelation.extra ? previousRootChildRelation.extra.alias : childTable.alias;
-
-          query.leftJoin(
-            `${childTable.tableName} as ${alias}`,
-            this.knex.raw(`${previousRootChildRelation.condition}`),
-          );
-
-          return;
-        }
-
         const alias = previousRootChildRelation.extra ? previousRootChildRelation.extra.alias : childTable.alias;
+        const prefixedTableName = previousRootChildRelation.extra
+          ? previousRootChildRelation.extra.prefix
+          : childTable.tableName;
 
         if (this.isShowDeleted) {
           query.leftJoin(`${childTable.tableName} as ${alias}`, function () {
-            this.on(`${childTable.alias}.id`, "=", `${previousRootTable.alias}.${childTable.tableName}_id`);
+            this.on(`${alias}.id`, "=", `${previousRootTable.alias}.${prefixedTableName}_id`);
           });
         } else {
           query.leftJoin(`${childTable.tableName} as ${alias}`, function () {
-            this.on(`${childTable.alias}.id`, "=", `${previousRootTable.alias}.${childTable.tableName}_id`); //
+            this.on(`${alias}.id`, "=", `${previousRootTable.alias}.${prefixedTableName}_id`); //
             if (childTable.columns.includes("date_deleted")) {
-              this.andOnNull(`${childTable.alias}.date_deleted`);
+              this.andOnNull(`${alias}.date_deleted`);
             }
           });
         }

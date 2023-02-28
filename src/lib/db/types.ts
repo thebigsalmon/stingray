@@ -26,7 +26,6 @@ export interface Relation {
   name?: string;
   tableName: string;
   relationType: relationType;
-  condition?: string;
   extra?: {
     alias: string;
     prefix: string;
