@@ -27,3 +27,21 @@ export class ClientError extends Error {
     return result;
   }
 }
+
+export abstract class InternalError<T extends GenericObject> extends Error {
+  public readonly code = CODE_INTERNAL_SERVER_ERROR;
+
+  abstract errorTypeMnemocode: string;
+  abstract message: string;
+
+  constructor(protected data?: T) {
+    super();
+  }
+
+  public getData(): { errorTypeMnemocode: string } & { data: T | undefined } {
+    return {
+      errorTypeMnemocode: this.errorTypeMnemocode,
+      data: this.data,
+    };
+  }
+}
