@@ -5,6 +5,9 @@ export const CODE_REQUEST_INVALID = -32600;
 export const CODE_METHOD_NOT_FOUND = -32601;
 export const CODE_INVALID_PARAMS = -32602;
 
+/**
+ * @deprecated: use StingrayError instread.
+ */
 export class ClientError extends Error {
   code: number;
 
