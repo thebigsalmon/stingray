@@ -133,7 +133,7 @@ const extractErrorDefinitions = ({
     throw new Error("No module source file");
   }
 
-  const internalErrorClass = moduleSourceFile.getClass("InternalError");
+  const internalErrorClass = moduleSourceFile.getClass("StingrayError");
   if (!internalErrorClass) {
     throw new Error("No internal error class");
   }
@@ -432,7 +432,9 @@ export default async function ({
         );
       }
 
-      await writeFile(resolve(itemTypesFullOutFolderName, routes[i].apiFileName!), apiFileLines.join("\n"));
+      if (apiFileLines.length !== 0) {
+        await writeFile(resolve(itemTypesFullOutFolderName, routes[i].apiFileName!), apiFileLines.join("\n"));
+      }
     }
 
     const mapKey = routes[i].folders.join("/");
@@ -476,12 +478,14 @@ export default async function ({
           importValues.push(`${capitalizeFirstLetter(fullRouteNameWhole)}Response`);
         }
 
-        indexFileImportLines.push(
-          `import {${importValues.join()}} from "./types/${routes[i].apiFileName!.replace(".ts", "")}";`,
-        );
-        indexFileExportTypesLines.push(
-          `export type {${importValues.join()}} from "./types/${routes[i].apiFileName!.replace(".ts", "")}";`,
-        );
+        if (hasRequest || hasResponse) {
+          indexFileImportLines.push(
+            `import {${importValues.join()}} from "./types/${routes[i].apiFileName!.replace(".ts", "")}";`,
+          );
+          indexFileExportTypesLines.push(
+            `export type {${importValues.join()}} from "./types/${routes[i].apiFileName!.replace(".ts", "")}";`,
+          );
+        }
 
         requestTypeString = hasRequest ? `${capitalizeFirstLetter(fullRouteNameWhole)}Request` : "never";
         responseTypeString = hasResponse ? `${capitalizeFirstLetter(fullRouteNameWhole)}Response` : "void";
@@ -554,7 +558,7 @@ ${indexFileExportLines.join("\n\n")}
 
   const baseErrorFile = `type GenericObject = { [key: string]: unknown };
 
-  export abstract class InternalError<T extends GenericObject> extends Error {
+  export abstract class StingrayError<T extends GenericObject> extends Error {
     static errorTypeMnemocode: string;
     static message: string;
   
@@ -578,9 +582,9 @@ ${indexFileExportLines.join("\n\n")}
 
   errorDefinitionList.forEach((errorDefinitionItem) => {
     contentByPureErrorItem[errorDefinitionItem.fileName].push(`
-export class ${errorDefinitionItem.className} extends InternalError<${errorDefinitionItem.typeStr}> {
-  public readonly errorTypeMnemocode = ${errorDefinitionItem.errorTypeMnemocode};
-  public readonly message = ${errorDefinitionItem.message};
+export class ${errorDefinitionItem.className} extends StingrayError<${errorDefinitionItem.typeStr}> {
+  public static errorTypeMnemocode = ${errorDefinitionItem.errorTypeMnemocode};
+  public static message = ${errorDefinitionItem.message};
 
   constructor(${errorDefinitionItem.typeStr !== "never" ? `public data: ${errorDefinitionItem.typeStr}` : ""}) {
     super(${errorDefinitionItem.typeStr !== "never" ? `data` : ""});
@@ -594,7 +598,7 @@ export class ${errorDefinitionItem.className} extends InternalError<${errorDefin
   for (let i = 0; i < errorFileNames.length; i++) {
     await writeFile(
       resolve(outDir, "errors", errorFileNames[i]),
-      `import { InternalError } from "./base";\n` + contentByPureErrorItem[errorFileNames[i]].join("\n"),
+      `import { StingrayError } from "./base";\n` + contentByPureErrorItem[errorFileNames[i]].join("\n"),
     );
   }
 }

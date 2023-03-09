@@ -11,7 +11,7 @@ import {
   JsonRpcServer,
   JsonRpcServerError,
 } from "./index";
-import { ClientError, InternalError } from "./errors";
+import { ClientError, StingrayError } from "./errors";
 import { StopwatchTimer } from "../helpers/datetime";
 import { Logger } from "../log";
 import { GenericObject } from "../db/types";
@@ -70,7 +70,7 @@ const handleError = (
     return;
   }
 
-  if (err instanceof ClientError || err instanceof InternalError) {
+  if (err instanceof ClientError || err instanceof StingrayError) {
     const data = err.getData();
 
     res.writeHead(200, responseHeaders);

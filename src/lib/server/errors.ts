@@ -28,7 +28,7 @@ export class ClientError extends Error {
   }
 }
 
-export abstract class InternalError<T extends GenericObject> extends Error {
+export abstract class StingrayError<T extends GenericObject> extends Error {
   public readonly code = CODE_INTERNAL_SERVER_ERROR;
 
   abstract errorTypeMnemocode: string;
