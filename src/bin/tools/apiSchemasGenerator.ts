@@ -8,6 +8,7 @@ import { resolve } from "node:path";
 
 import { compile } from "ejs";
 import * as TJS from "typescript-json-schema";
+import { ModuleKind, ScriptTarget } from "typescript";
 
 interface GenericObject {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -67,12 +68,30 @@ export function registerResponsePickers(jsonRpcServer: JsonRpcServer): void {
 export default async ({ projectRootDir, outDir }: { projectRootDir: string; outDir: string }) => {
   // optionally pass ts compiler options
   const compilerOptions: TJS.CompilerOptions = {
-    strictNullChecks: true,
-    baseUrl: `${projectRootDir}/src`,
-    rootDir: `${projectRootDir}/src`,
+    target: ScriptTarget.ES2020,
+    module: ModuleKind.ES2020,
+    rootDir: "./src",
+    baseUrl: "./src",
     paths: {
+      "@domain/*": ["domain/*"],
+      "@errors/*": ["errors/*"],
       "@routes/*": ["routes/*"],
+      "@models/*": ["models/*"],
+      "@store/*": ["store/*"],
+      "@middlewares/*": ["middlewares/*"],
+      "@providers/*": ["providers/*"],
+      "@constants/*": ["constants/*"],
+      "@root/*": ["*"],
+      "@tasks/*": ["tasks/*"],
+      "@util/*": ["util/*"],
     },
+    sourceMap: true,
+    outDir: "./build",
+    esModuleInterop: true,
+    forceConsistentCasingInFileNames: true,
+    strict: true,
+    strictNullChecks: true,
+    skipLibCheck: true,
   };
 
   const routesPath = resolve(projectRootDir, "src", "routes");
