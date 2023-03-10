@@ -5,6 +5,9 @@ export const CODE_REQUEST_INVALID = -32600;
 export const CODE_METHOD_NOT_FOUND = -32601;
 export const CODE_INVALID_PARAMS = -32602;
 
+/**
+ * @deprecated: use StingrayError instread.
+ */
 export class ClientError extends Error {
   code: number;
 
@@ -25,5 +28,23 @@ export class ClientError extends Error {
     };
 
     return result;
+  }
+}
+
+export abstract class StingrayError<T extends GenericObject> extends Error {
+  public readonly code = CODE_INTERNAL_SERVER_ERROR;
+
+  abstract errorTypeMnemocode: string;
+  abstract message: string;
+
+  constructor(protected data?: T) {
+    super();
+  }
+
+  public getData(): { errorTypeMnemocode: string } & { data: T | undefined } {
+    return {
+      errorTypeMnemocode: this.errorTypeMnemocode,
+      data: this.data,
+    };
   }
 }
